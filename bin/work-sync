@@ -1,0 +1,45 @@
+#!/usr/bin/env sh
+set -eu
+SCRIPT_PATH=$(readlink -f "$0" 2>/dev/null || printf '%s' "$0")
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd)
+REPO_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
+
+usage() {
+  cat <<'EOF'
+Usage: work-sync <command> [args]
+
+Commands:
+  pull            Pull latest changes
+  push [message]  Commit and push all tracked workspace files
+  status          Show git status
+EOF
+}
+
+cmd=${1:-status}
+if [ $# -gt 0 ]; then shift; fi
+
+case "$cmd" in
+  pull)
+    git -C "$REPO_DIR" pull --rebase --autostash
+    ;;
+  push)
+    msg=${1:-"Update work files $(date '+%Y-%m-%d %H:%M:%S %Z')"}
+    git -C "$REPO_DIR" add -A
+    if git -C "$REPO_DIR" diff --cached --quiet; then
+      echo "No changes to commit."
+      exit 0
+    fi
+    git -C "$REPO_DIR" commit -m "$msg"
+    git -C "$REPO_DIR" push origin main
+    ;;
+  status)
+    git -C "$REPO_DIR" status --short --branch
+    ;;
+  help|-h|--help)
+    usage
+    ;;
+  *)
+    usage
+    exit 1
+    ;;
+esac
